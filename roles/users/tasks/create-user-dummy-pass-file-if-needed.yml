@@ -1,0 +1,50 @@
+---
+
+- name: "Check if {{ username }} user pass file exists"
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+  become: false
+  # force real execution even if it's check mode (command is harmless)
+  check_mode: no
+  file:
+    path: "{{ playbook_dir }}/{{ user_password_file }}"
+    state: file
+  register: user_pass_file_exists_step
+
+- name: "Check if {{ username }} already exists"
+  changed_when: false
+  failed_when: false
+  # force execution even if it's check mode (command is harmless)
+  check_mode: no
+  command: "grep -Eq '^{{ username }}:' /etc/passwd"
+  register: user_exists_step
+
+- name: "Create dummy password file for {{ username }}"
+  when: user_exists_step.rc == 0 and user_pass_file_exists_step.state == 'absent'
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  # force real execution even if it's check mode (to be sure file will be there even with check mode)
+  check_mode: no
+  template:
+    dest: "{{ playbook_dir }}/{{ user_password_file }}"
+    src: "dummy.pass"
+
+- when: user_exists_step.rc != 0 and user_pass_file_exists_step.state == 'file'
+  block:
+  - name: "Check if {{ username }} pass file is valid"
+    delegate_to: localhost
+    become: false
+    changed_when: false
+    # force execution in check mode (will not write the file)
+    check_mode: yes
+    # Must fail if file contains dummy password (if it's the case, checksum is present as file hasn't been updated)
+    failed_when: user_pass_file_valid_step.checksum | default(false)
+    template:
+      dest: "{{ playbook_dir }}/{{ user_password_file }}"
+      src: "dummy.pass"
+    register: user_pass_file_valid_step
+  rescue:
+    - fail:
+        msg: "User {{ username }} will be created with a dummy password ! Remove {{ playbook_dir }}/{{ user_password_file }} file and re-execute !"

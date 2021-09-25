@@ -1,0 +1,41 @@
+---
+
+- name: "Manage {{ username }} ssh keys"
+  import_role:
+    name: ssh_keys
+    tasks_from: manage-local-ssh_keys
+  tags: configure-ssh-keys-and-connection
+
+- name: Check if private ssh key is there (mostly for check mode issue)
+  delegate_to: localhost
+  changed_when: false
+  become: false
+  stat:
+    path: "{{ local_public_key_filepath }}"
+  register: public_ssh_keys_step
+
+- name: "Authorize public ssh key for ssh connection for {{ username }}"
+  authorized_key:
+    user: "{{ username }}"
+    key: "{{ lookup('file', '{{ local_public_key_filepath }}') }}"
+    key_options: "{{ key_options | default(omit, true) }}"
+    manage_dir: true # Will create file if not existing
+    exclusive: true # Force removal of any other keys
+    state: present
+    path: "/home/{{ username }}/.ssh/authorized_keys"
+  when: public_ssh_keys_step.stat.exists
+
+- name: "Restrict ssh connection to only public key for {{ username }}"
+  blockinfile:
+    dest: /etc/ssh/sshd_config
+    validate: /usr/sbin/sshd -T -f %s
+    # Restrict to ssh key login for ansible user
+    block: |
+      Match User {{ username }}
+          PasswordAuthentication no
+          PubkeyAuthentication yes
+    state: present
+    backup: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - {{ username }}"
+  notify:
+    - restart-ssh

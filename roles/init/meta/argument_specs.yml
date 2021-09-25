@@ -1,0 +1,53 @@
+---
+argument_specs:
+  main:
+    options:
+      ansible_user:
+        required: true
+        description: "User to use for ssh connection (as ansible user is not there)"
+      ansible_password:
+        required: false
+        description: "User password to use for ssh connection (as ansible user is not there). See ansible_ssh_private_key_file for ssh key instead !"
+        default: null
+      ansible_ssh_private_key_file:
+        required: false
+        default: null
+        description: "User private ssh key to use for ssh connection (as ansible user is not there). See ansible_password for ssh password instead !"
+      local_private_key_filepath:
+        required: true
+        type: str
+        description: "Local path to the ansible SSH private key which will be used after playbook execution"
+      local_public_key_filepath:
+        required: true
+        type: str
+        description: "Local path to the ansible SSH public key which will be used after playbook execution"
+      expected_ansible_user_name:
+        required: true
+        type: str
+        description: "Ansible user which will be used after playbook execution"
+      admin_user_name:
+        required: true
+        type: str
+        description: "Admin user username"
+      expected_ansible_user_shell:
+        required: false
+        type: str
+        description: "Admin user shell"
+      expected_ansible_user_groups:
+        required: false
+        type: list
+        elements: str
+        description: "Admin user groups"
+      expected_ansible_user_authorized_key_options:
+        type: str
+        description: "Key options to prepend on remote authorized_keys file for ansible user key"
+        default: null # Set null by default, so nothing will be prepended
+      admin_user_shell:
+        required: false
+        type: str
+        description: "Admin user shell"
+      admin_user_groups:
+        required: false
+        type: list
+        elements: str
+        description: "Admin user groups"

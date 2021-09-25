@@ -1,0 +1,22 @@
+---
+argument_specs:
+  manage-local-ssh_keys:
+    options:
+      local_private_key_filepath:
+        required: true
+        type: str
+        description: "Local path to the SSH private key"
+      local_public_key_filepath:
+        required: true
+        type: str
+        description: "Local path to the SSH public key"
+  generate-and-fetch-ssh_keys:
+    options:
+      local_private_key_filepath:
+        required: true
+        type: str
+        description: "Local path to the SSH private key"
+      local_public_key_filepath:
+        required: true
+        type: str
+        description: "Local path to the SSH public key"

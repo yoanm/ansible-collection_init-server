@@ -1,0 +1,34 @@
+---
+
+- name: "Check if {{ username }} pass file is a dummy pass file"
+  delegate_to: localhost
+  become: false
+  # force execution in check mode (will not write the file)
+  check_mode: yes
+  changed_when: false
+  failed_when: false
+  template:
+    dest: "{{ playbook_dir }}/{{ user_password_file }}"
+    src: "dummy.pass"
+  register: user_pass_file_valid_step
+
+- name: "Remove {{ username }} dummy pass file"
+  #  if file contains the dummy pass, checksum is present as file hasn't been updated
+  when: user_pass_file_valid_step.checksum | default(false)
+  changed_when: false
+  delegate_to: localhost
+  become: false
+  # force real execution even if it's check mode (to be sure file will be deleted even with check mode)
+  check_mode: no
+  file:
+    path: "{{ playbook_dir }}/{{ user_password_file }}"
+    state: absent
+
+- name: "Restrict {{ username }} pass file permissions"
+  #  if file doesn't contain the dummy pass, checksum is not present as file has been updated
+  when: not (user_pass_file_valid_step.checksum | default(false))
+  delegate_to: localhost
+  become: false
+  file:
+    path: "{{ playbook_dir }}/{{ user_password_file }}"
+    mode: 0600

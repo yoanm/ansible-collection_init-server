@@ -1,0 +1,48 @@
+---
+
+- name: Geneate public and private ssh keys
+  changed_when: false
+  community.crypto.openssh_keypair:
+    path: "/home/{{ ansible_user }}/.id_rsa_{{ lookup('password', '/dev/null chars=ascii_lowercase,ascii_uppercase length=10') }}"
+    type: rsa
+    comment: "Ansible generated"
+    mode: 0600
+    size: 4096
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: ssk_keys_step
+
+- name: Fetch generated keys to local host
+  # Disable for check mode as files will not be generated !
+  when: not ansible_check_mode
+  fetch:
+    src: "{{ item.source }}"
+    dest: "{{ item.dest }}"
+    flat: true
+    force: true
+  with_items:
+    - source: "{{ ssk_keys_step.filename }}"
+      dest: "{{ local_private_key_filepath }}"
+    - source: "{{ ssk_keys_step.filename }}.pub"
+      dest: "{{ local_public_key_filepath }}"
+
+- name: Remove generated keys on remote host
+  changed_when: false
+  file:
+    path: "{{ item }}"
+    state: absent
+    force: true
+  with_items:
+    - "{{ ssk_keys_step.filename }}"
+    - "{{ ssk_keys_step.filename }}.pub"
+
+- name: Set right permission to local public and private keys
+  delegate_to: localhost
+  become: false
+  when: not ansible_check_mode
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: 0600
+  with_items:
+    - "{{ local_private_key_filepath }}"
+    - "{{ local_public_key_filepath }}"

@@ -1,0 +1,66 @@
+---
+
+- name: Manage ansible user
+  tags: ansible-user
+  block:
+    - name: Create ansible user
+      import_role:
+        name: users
+        tasks_from: create
+      vars:
+        username: "{{ expected_ansible_user_name }}"
+        shell: "{{ expected_ansible_user_shell | default(omit) }}"
+        user_groups: "{{ expected_ansible_user_groups | default([sudo]) }}"
+        sudo_without_pass: true
+        sudoers: true
+        user_password_file: "{{ expected_ansible_user_name }}_at_{{ inventory_hostname }}.pass"
+
+    - name: Configure ssh connections for ansible user
+      import_role:
+        name: users
+        tasks_from: configure-ssh-keys-and-connection
+      vars:
+        username: "{{ expected_ansible_user_name }}"
+        key_options: "{{ expected_ansible_user_authorized_key_options | default(omit, true) }}"
+
+    - name: Disable root ssh login
+      lineinfile:
+        dest: /etc/ssh/sshd_config
+        validate: /usr/sbin/sshd -T -f %s
+        regexp: '^PermitRootLogin no$'
+        line: 'PermitRootLogin no'
+        backup: true
+      notify:
+        - restart-ssh
+
+    - name: Ensure ssh connection with key works for ansible user
+      import_role:
+        name: users
+        tasks_from: ensure-ssh-with-key-works
+      vars:
+        ssh_user: "{{ expected_ansible_user_name }}"
+        ssh_host: "{{ ansible_host }}"
+        ssh_key_filepath: "{{ local_private_key_filepath }}"
+
+- name: Manage admin user
+  tags: admin-user
+  block:
+    - name: Create admin user
+      import_role:
+        name: users
+        tasks_from: create
+      vars:
+        username: "{{ admin_user_name }}"
+        shell: "{{ admin_user_shell | default(omit) }}"
+        user_groups: "{{ admin_user_groups | default(omit) }}"
+        sudo_without_pass: false
+        sudoers: true
+        user_password_file: "{{ admin_user_name }}_at_{{ inventory_hostname }}.pass"
+
+    - name: Ensure ssh connection with password works for admin user
+      import_role:
+        name: users
+        tasks_from: ensure-ssh-with-password-works
+      vars:
+        ssh_user: "{{ admin_user_name }}"
+        ssh_host: "{{ ansible_host }}"

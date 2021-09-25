@@ -1,0 +1,29 @@
+---
+- name: Create dummy password file if needed
+  import_role:
+    name: users
+    tasks_from: create-user-dummy-pass-file-if-needed
+
+- name: "Create user {{ username }}"
+  user:
+    name: "{{ username }}"
+    password: "{{ lookup('password', '{{ user_password_file }} chars=ascii_lowercase,ascii_uppercase,digits length=30 encrypt=sha512_crypt') }}"
+    update_password: on_create
+    shell: '{{ shell }}'
+    groups: "{{ user_groups }}"
+
+- name: Remove or update pass file
+  import_role:
+    name: users
+    tasks_from: remove-or-restrict-user-pass-file
+
+- name: "Configure sudo for {{ username }} {{ sudo_without_pass | default(false) | ternary('without password', 'with password protection') }} "
+  template:
+    src: "etc/sudoers.d/{{ sudo_without_pass | default(false) | ternary('without_password', 'with_password') }}.j2"
+    dest: '/etc/sudoers.d/{{ username }}'
+    owner: root
+    group: root
+    mode: 0640
+    validate: /usr/sbin/visudo -csf %s
+    backup: true
+  when: sudoers and sudoers == true

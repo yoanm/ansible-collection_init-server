@@ -1,0 +1,29 @@
+---
+
+- block:
+    # Flush handlers so ssh server will be restarted if needed (before the next step test ssh connection)
+    - name: Flush handlers
+      meta: flush_handlers
+    - name: "Ensure ssh connection with key works for {{ ssh_user }} user"
+      become: false
+      delegate_to: localhost
+      changed_when: false
+      shell:
+        cmd: |
+          ssh {{ ssh_user }}@{{ ssh_host }} \
+            -i "{{ ssh_key_filepath }}" \
+            -o "BatchMode=yes" \
+            -o "AddKeysToAgent=no" \
+            -o "IdentitiesOnly=yes" \
+            -o "PreferredAuthentications=publickey" \
+            -o "PasswordAuthentication=no" \
+            -o "PubkeyAuthentication=yes" \
+            -o "ConnectionAttempts=1" \
+            -o "ConnectTimeout=5"
+        executable: /bin/bash
+      register: ensure_ssh_with_key_step
+  rescue:
+    - name: Fails is connection attemp failed
+      fail:
+        msg: "{{ ssh_user }} can't connect to {{ inventory_hostname }} with ssh key !\n{{ ensure_ssh_with_key_step.stderr }}"
+
